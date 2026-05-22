@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  api-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rinha-cpp-api-1
+    ports:
+      - "9991:9999"
+    environment:
+      - INDEX_PATH=/app/data/hnsw_index.bin
+      - METADATA_PATH=/app/data/references.bin
+      - MCC_RISK_PATH=/app/resources/mcc_risk.json
+      - NORMALIZATION_PATH=/app/resources/normalization.json
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '175M'
+    networks:
+      - rinha-network
+    restart: unless-stopped
+
+  api-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rinha-cpp-api-2
+    ports:
+      - "9992:9999"
+    environment:
+      - INDEX_PATH=/app/data/hnsw_index.bin
+      - METADATA_PATH=/app/data/references.bin
+      - MCC_RISK_PATH=/app/resources/mcc_risk.json
+      - NORMALIZATION_PATH=/app/resources/normalization.json
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '175M'
+    networks:
+      - rinha-network
+    restart: unless-stopped
+
+  load-balancer:
+    image: haproxy:2.8-alpine
+    container_name: rinha-cpp-lb
+    ports:
+      - "9999:9999"
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - api-1
+      - api-2
+    networks:
+      - rinha-network
+    restart: unless-stopped
+
+networks:
+  rinha-network:
+    driver: bridge
