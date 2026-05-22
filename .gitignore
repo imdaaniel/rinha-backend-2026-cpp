@@ -68,3 +68,13 @@ vcpkg_installed/
 Testing/
 .cache/
 data/
+
+# IDE files
+.vscode/
+.idea/
+
+# Generated binary files
+*.bin
+
+# Test results
+results.json
