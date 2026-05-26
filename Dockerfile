@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y \
     cmake \
     git \
     pkg-config \
-    libmicrohttpd-dev \
     zlib1g-dev \
     nlohmann-json3-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -27,7 +26,7 @@ ARG REF_BIN=data/references_300k.bin
 COPY ${REF_BIN} data/references.bin
 
 # Build index from binary references
-RUN g++ -O3 -march=native -std=c++20 \
+RUN g++ -O3 -std=c++20 \
     tools/build_index_from_bin.cpp \
     -I. -Ihnswlib \
     -lz \
@@ -35,7 +34,7 @@ RUN g++ -O3 -march=native -std=c++20 \
 
 RUN ./build_index_from_bin data/references.bin data/hnsw_index.bin || \
     (echo "Index build from bin failed, trying from JSON..." && \
-     g++ -O3 -march=native -std=c++20 \
+     g++ -O3 -std=c++20 \
      tools/build_index.cpp \
      -I. -Ihnswlib \
      -lz \
@@ -43,24 +42,23 @@ RUN ./build_index_from_bin data/references.bin data/hnsw_index.bin || \
      ./build_index /resources/references.json.gz data/references.bin data/hnsw_index.bin)
 
 # Build main application directly with g++ (bypassing CMake issues)
-RUN g++ -O3 -march=native -std=c++20 \
+RUN g++ -O3 -std=c++20 \
     src/main.cpp \
     src/vectorizer.cpp \
     src/index_loader.cpp \
-    src/http_server.cpp \
+    src/http_server_custom.cpp \
     src/metadata.cpp \
     -I. -Isrc -Ihnswlib \
-    -pthread -lmicrohttpd -lz \
+    -pthread -lz \
     -o rinha-api 2>&1 || \
     (echo "Compilation failed, checking files:" && ls -la src/ && exit 1)
 
 # Runtime stage
 FROM ubuntu:22.04
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libmicrohttpd12 \
-    && rm -rf /var/lib/apt/lists/*
+# No runtime dependencies needed
+# RUN apt-get update && apt-get install -y \
+#     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
