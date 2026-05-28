@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     zlib1g-dev \
     nlohmann-json3-dev \
+    libmicrohttpd-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy source code
@@ -25,40 +26,28 @@ ARG REF_BIN=data/references_300k.bin
 # Copy pre-built metadata
 COPY ${REF_BIN} data/references.bin
 
-# Build index from binary references
-RUN g++ -O3 -std=c++20 \
-    tools/build_index_from_bin.cpp \
-    -I. -Ihnswlib \
-    -lz \
-    -o build_index_from_bin
-
-RUN ./build_index_from_bin data/references.bin data/hnsw_index.bin || \
-    (echo "Index build from bin failed, trying from JSON..." && \
-     g++ -O3 -std=c++20 \
-     tools/build_index.cpp \
-     -I. -Ihnswlib \
-     -lz \
-     -o build_index && \
-     ./build_index /resources/references.json.gz data/references.bin data/hnsw_index.bin)
+# Copy pre-built HNSW index from cpp/data
+COPY data/hnsw_index.bin data/hnsw_index.bin
 
 # Build main application directly with g++ (bypassing CMake issues)
 RUN g++ -O3 -std=c++20 \
     src/main.cpp \
     src/vectorizer.cpp \
     src/index_loader.cpp \
-    src/http_server_custom.cpp \
+    src/http_server.cpp \
     src/metadata.cpp \
     -I. -Isrc -Ihnswlib \
-    -pthread -lz \
+    -pthread -lz -lmicrohttpd \
     -o rinha-api 2>&1 || \
     (echo "Compilation failed, checking files:" && ls -la src/ && exit 1)
 
 # Runtime stage
 FROM ubuntu:22.04
 
-# No runtime dependencies needed
-# RUN apt-get update && apt-get install -y \
-#     && rm -rf /var/lib/apt/lists/*
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libmicrohttpd12 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

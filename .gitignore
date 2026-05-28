@@ -77,4 +77,4 @@ data/
 *.bin
 
 # Test results
-results.json
+results*.json
